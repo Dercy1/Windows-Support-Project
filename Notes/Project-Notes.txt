@@ -1,0 +1,240 @@
+Project: Windows Support and Ticket Resolution
+Started: October 20, 2026
+Environment: Windows 11 virtual machine in VMware Workstation
+
+
+Objective: 
+Practice diagnosing and resolving common IT support problems involving user accounts, folder permissions, services, DNS, and file recovery.
+
+
+Scope:
+This is a simulated home lab. Changes will be made inside the windows virtual machine.
+
+Documentation:
+For each ticket, record the reported problem, diagnostic steps, root cause, resolution, and verification results.
+
+Step2: System baseline
+
+Collected the computer name, Windows edition, OS version,
+build number, and RAM using PowerShell before making changes.
+
+Evidence: Screenshots/01-Windows-Version.png/02-Computer-Identity.png
+
+Baseline results:
+Windows edition: Windows 11 Pro
+OS version: 10.0.26300
+Build: 26300
+RAM: 4 GB
+
+These values record the starting configuration before
+the support-ticket exercises.
+
+Step 3: Local account inventory
+
+Listed existing local accounts and their enabled status
+before creating a test employee account.
+
+Command:
+Get-LocalUser | Select-Object Name, Enabled, Description
+
+Evidence: Screenshots/03-Existing-Local-Accounts.png
+
+Step 4: Created a test employee account
+
+Created lab.employee and added it to the local Users group
+for standard access. Entered its password through a secure
+prompt. This account will be used for simulated support tickets.
+
+Evidence: Screenshots/04-Test-Employee-Created.png
+
+
+Step 5: Verified employee login
+
+Signed in as lab.employee and used whoami to confirm
+the session identity. This establishes that the account
+worked before introducing the simulated login problem.
+
+Evidence: Screenshots/05-Employee-Login-Baseline.png
+
+
+Lab preparation: Introduced a login fault
+
+Deliberately disabled lab.employee after confirming it
+could sign in. This creates the simulated problem for
+Ticket 1. The dercy account was left enabled.
+
+Evidence: Screenshots/06-Simulated-Fault-Account-Disabled.png
+
+
+
+
+Ticket: 001
+
+Title: Employee unable to sign in
+Environment: Simulated Windows 11 support lab
+Computer: Soc-analyst
+Affected account: lab.employee
+Status: Investigating
+
+Reported problem:
+Employee cannot sign in to the workstation.
+
+Diagnostic test:
+Attempted to launch cmd under lab.employee using runas.
+
+Evidence: Screenshots/07-Runas-Password-Entry-Error.png
+
+
+Diagnosis:
+The account existed but showed Enabled: False.
+It was also absent from the sign-in account list.
+The runas test encountered a password-entry error and
+did not establish an authentication result.
+
+Resolution:
+Re-enabled lab.employee using Enable-LocalUser.
+Confirmed Enabled: True.
+
+Status: Awaiting sign-in verification
+Evidence: Screenshots/08-Employee-Account-Enabled.png
+
+
+Ticket: 002
+Title: Employee cannot edit a department file
+Environment: Simulated Windows 11 support lab
+Affected account: Soc-analyst\lab.employee
+File: C:\SupportLab\Department\Team-Notes.txt
+
+Symptoms:
+The employee can read the file but cannot add text.
+Add-Content returns Access denied.
+
+Diagnosis:
+The employee has Read & Execute permission (RX).
+This permission does not allow writing to the file.
+The permissions restriction was deliberately configured
+for this lab.
+
+Evidence:
+10-Department-Folder-Permissions.png
+11-Employee-Edit-Test.png
+
+Status: Investigatings
+
+Resolution:
+Changed lab.employee's folder permission from Read &
+Execute (RX) to Modify (M) using icacls.
+Administrators and SYSTEM retained Full control.
+
+Verification:
+Signed in as lab.employee and used regular PowerShell.
+Add-Content completed without an error.
+Get-Content confirmed that "Employee update." was saved.
+
+Evidence:
+12-Department-Modify-Permission.png
+13-Employee-Edit-Restored.png
+
+Status: Resolved
+
+Ticket: 003
+Title: Printer query fails because Print Spooler is stopped
+Environment: Simulated Windows 11 support lab
+Computer: Soc-analyst
+
+Baseline:
+Print Spooler was Running with Automatic startup.
+
+Fault simulation:
+Deliberately stopped Print Spooler using Stop-Service.
+
+Observed symptom:
+Get-Printer failed with:
+"The spooler service is not reachable."
+
+Diagnosis:
+The printing query failed while Print Spooler was stopped.
+Automatic startup did not mean the service was running.
+
+Evidence:
+14-Print-Spooler-Baseline.png
+15-Print-Spooler-Stopped.png
+16-Printer-Query-Service-Stopped.png
+
+Status: Investigating
+
+
+Resolution:
+Started Print Spooler using Start-Service -Name Spooler.
+The startup setting remained Automatic.
+
+Verification:
+Get-Service confirmed Print Spooler was Running.
+Get-Printer completed successfully and listed
+Microsoft Print to PDF with PrinterStatus Normal.
+
+Testing scope:
+Verified service recovery and printer enumeration.
+No print job was submitted.
+
+Evidence:
+17-Print-Spooler-Recovery-Test.png
+
+Status: Resolved
+
+Resolution:
+Restored DNS server address 192.168.213.2 on
+Ethernet0, interface index 3.
+
+Verification:
+Get-DnsClientServerAddress confirmed the restored address.
+nslookup example.com returned IP addresses successfully.
+
+Configuration note:
+The restored DNS address is now explicitly configured.
+The original automatic/manual DNS mode was not recorded.
+
+Evidence:
+22-DNS-Recovery-Test.png
+
+Status: Resolved
+
+Ticket: 005
+Title: Restore a deleted file from a verified backup
+Environment: Simulated Windows 11 support lab
+Computer: Soc-analyst
+
+Original file:
+C:\SupportLab\Recovery\Employee-Report.txt
+
+Backup:
+C:\SupportLab\Backup\Employee-Report.txt
+
+Preparation:
+Created a sample report and copied it to the backup folder.
+Verified matching SHA256 hashes before deletion.
+
+Fault simulation:
+Deleted the original using Remove-Item.
+Test-Path returned False for the original and True
+for the backup.
+
+Resolution:
+Copied the backup to the original location.
+
+Verification:
+Get-Content displayed the expected report text.
+The restored file's SHA256 hash matched the backup
+and the original baseline.
+
+Limitation:
+The backup was on the same virtual disk.
+This exercise tested file deletion recovery, not
+protection against disk failure.
+
+Evidence:
+23-File-Backup-Verified.png
+24-Original-File-Deleted.png
+25-File-Recovery-Verified.png
+
+Status: Resolved
